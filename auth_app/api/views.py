@@ -1,3 +1,4 @@
+from django.core.mail import send_mail
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
@@ -15,6 +16,15 @@ class RegistrationView(APIView):
 
         if serializer.is_valid():
             saved_account = serializer.save()
+            from django.core.mail import send_mail
+
+            send_mail(
+                subject='Willkommen bei Videoflix!',
+                message='Danke für deine Registrierung, {}!'.format(saved_account.email),
+                from_email=None,
+                recipient_list=[saved_account.email],
+                fail_silently=False,
+)
             refresh = RefreshToken.for_user(saved_account)
             data = {
                 'user': {
