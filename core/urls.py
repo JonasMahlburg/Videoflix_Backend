@@ -21,6 +21,6 @@ from auth_app.api import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/registration/', views.RegistrationView.as_view(), name="registration"), 
+     path('api/', include('auth_app.api.urls')), 
     path('api/', include('content_app.api.urls')),
 ]
