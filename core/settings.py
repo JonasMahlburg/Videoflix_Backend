@@ -181,10 +181,10 @@ SIMPLE_JWT = {
 }
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'w01f5373.kasserver.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'noreply.videoflix.com'
-EMAIL_HOST_PASSWORD = 'dein-app-passwort'  # Kein normales Passwort, sondern z. B. ein Gmail-App-Passwort
+EMAIL_HOST_USER = 'm078a05a'
+EMAIL_HOST_PASSWORD = 'mimvox-gikfys-wiHna1'  # Kein normales Passwort, sondern z. B. ein Gmail-App-Passwort
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

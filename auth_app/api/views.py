@@ -15,6 +15,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth import get_user_model
+from django.core.mail import EmailMultiAlternatives
 
 User = get_user_model() 
 
@@ -34,13 +35,26 @@ class RegistrationView(APIView):
             # Stelle sicher, dass dies die korrekte URL zu deiner Aktivierungs-View ist
             activation_link = f"http://localhost:8000/api/activate/{uid}/{token}/" 
 
-            send_mail(
-                subject='Aktiviere deinen Account bei Videoflix!',
-                message=f'Bitte klicke auf diesen Link zur Aktivierung: {activation_link}',
-                from_email=None, # Hier solltest du einen FROM_EMAIL in deinen Django-Einstellungen definieren.
-                recipient_list=[saved_account.email],
-                fail_silently=False,
+            
+
+            subject = 'Willkommen bei Videoflix 🎬 – Aktiviere deinen Account'
+            text_content = f'Danke für deine Registrierung, {saved_account.username}!\n\nKlicke auf den folgenden Link, um deinen Account zu aktivieren:\n\n{activation_link}'
+            html_content = f'''
+            <p>Hallo <strong>{saved_account.username}</strong>,</p>
+            <p>Danke, dass du dich bei <strong>Videoflix</strong> registriert hast! 🎉</p>
+            <p>Klicke auf folgenden Link, um deinen Account zu aktivieren:</p>
+            <p><a href="{activation_link}">{activation_link}</a></p>
+            <p>Viel Spaß beim Streamen!<br>Dein Videoflix-Team</p>
+            '''
+
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email='Videoflix <noreply@jonas-mahlburg.de>',
+                to=[saved_account.email]
             )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
             
             # WICHTIG: Hier gibst du einen Token zurück. Der Benutzer ist aber noch inaktiv.
             # Wenn du nicht möchtest, dass ein Token zurückgegeben wird, solange der Benutzer inaktiv ist,
@@ -115,14 +129,19 @@ class CookieTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     
     def post(self, request, *args, **kwargs):
-        
-        serializer= self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-    
+
         refresh = serializer.validated_data["refresh"]
         access = serializer.validated_data["access"]
 
-        response = Response({"message": "Login successfully"})
+        response = Response({
+            "detail": "Login successful",
+            "user": {
+                "id": serializer.user.id,
+                "username": serializer.user.username
+            }
+        })
 
         response.set_cookie(
             key="access_token",
@@ -140,7 +159,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             samesite="Lax"
         )
 
-        response.data = {"message": "login successfully"}
+        # Do not override response.data here
         return response
 
 class CookieTokenRefreshView(TokenRefreshView):

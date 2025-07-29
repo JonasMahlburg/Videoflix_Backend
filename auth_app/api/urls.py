@@ -8,9 +8,9 @@ from .views import RegistrationView, CookieTokenObtainPairView, CookieTokenRefre
 from .views import ActivateUserView, HelloWorldView
 
 urlpatterns = [
-    path('registration/', RegistrationView.as_view(), name='registration'),
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('register/', RegistrationView.as_view(), name='registration'),
+    path('login/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
     # path('activate/<uidb64>/<token>/', ActivateUserView.as_view(), name='activate'),
     path('activate/<uidb64>/<token>/', HelloWorldView.as_view(), name='activate'),
 ]
