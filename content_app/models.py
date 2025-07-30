@@ -1,6 +1,8 @@
 from django.db import models
 from datetime import date
 
+
+
 class Video(models.Model):
     title = models.CharField("Title", max_length=50)
     description = models.CharField("Description", max_length=200)
