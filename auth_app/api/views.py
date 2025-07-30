@@ -184,7 +184,10 @@ class CookieTokenRefreshView(TokenRefreshView):
             )
         access_token = serializer.validated_data.get("access")
 
-        response = Response({"message":"access Token refreshed"})
+        response = Response({
+                        "detail": "Token refreshed",
+                        "access": access_token
+                    })
         response.set_cookie(
             key="access_token",
             value=access_token,
@@ -239,3 +242,84 @@ class LogoutView(APIView):
         response.delete_cookie("refresh_token")
         
         return response
+    
+
+class PasswordResetView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"detail": "Email field is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Sicherheitshalber geben wir dieselbe Erfolgsmeldung zurück, um Enumeration zu verhindern
+            return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_200_OK)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_link = f"http://localhost:8000/api/password_reset_confirm/{uid}/{token}/"
+
+        subject = 'Passwort zurücksetzen – Videoflix'
+        text_content = f'Hallo {user.username},\n\nKlicke auf den folgenden Link, um dein Passwort zurückzusetzen:\n\n{reset_link}'
+        html_content = f'''
+        <p>Hallo <strong>{user.username}</strong>,</p>
+        <p>Klicke auf den folgenden Link, um dein Passwort zurückzusetzen:</p>
+        <p><a href="{reset_link}">{reset_link}</a></p>
+        <p>Wenn du dies nicht angefordert hast, ignoriere diese Nachricht.</p>
+        '''
+
+        email_msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email='Videoflix <noreply@jonas-mahlburg.de>',
+            to=[user.email]
+        )
+        email_msg.attach_alternative(html_content, "text/html")
+        email_msg.send()
+
+        return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_200_OK)
+
+#----------------------reset password without enumeration catch --------------------------------------------------------------------------
+
+# class PasswordResetView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         email = request.data.get("email")
+#         if not email:
+#             return Response({"detail": "Email field is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             user = User.objects.get(email=email)
+#         except User.DoesNotExist:
+#             # Sicherheitshalber geben wir dieselbe Erfolgsmeldung zurück, um Enumeration zu verhindern
+#             return Response({"detail": "Your Email is not in our Database"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         uid = urlsafe_base64_encode(force_bytes(user.pk))
+#         token = default_token_generator.make_token(user)
+#         reset_link = f"http://localhost:8000/api/password_reset_confirm/{uid}/{token}/"
+
+#         subject = 'Passwort zurücksetzen – Videoflix'
+#         text_content = f'Hallo {user.username},\n\nKlicke auf den folgenden Link, um dein Passwort zurückzusetzen:\n\n{reset_link}'
+#         html_content = f'''
+#         <p>Hallo <strong>{user.username}</strong>,</p>
+#         <p>Klicke auf den folgenden Link, um dein Passwort zurückzusetzen:</p>
+#         <p><a href="{reset_link}">{reset_link}</a></p>
+#         <p>Wenn du dies nicht angefordert hast, ignoriere diese Nachricht.</p>
+#         '''
+
+#         email_msg = EmailMultiAlternatives(
+#             subject=subject,
+#             body=text_content,
+#             from_email='Videoflix <noreply@jonas-mahlburg.de>',
+#             to=[user.email]
+#         )
+#         email_msg.attach_alternative(html_content, "text/html")
+#         email_msg.send()
+
+#         return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_200_OK)
+    
+#--------------------------------------------------------------------------------------------------------------------------------------------

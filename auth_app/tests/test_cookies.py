@@ -62,3 +62,34 @@ class TestCookieAuth:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert response.data["detail"] == "Refresh token invalid!"
+    
+    def test_refresh_with_expired_token(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        import datetime
+
+        refresh = RefreshToken.for_user(self.user)
+        refresh.set_exp(lifetime=datetime.timedelta(seconds=-1))  # Sofort abgelaufen
+
+        self.client.cookies["refresh_token"] = str(refresh)
+        response = self.client.post(self.refresh_url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data["detail"] == "Refresh token invalid!"
+
+    def test_login_cookie_attributes(self):
+        data = {
+            "email": self.user.email,
+            "password": "testpassword123"
+        }
+        response = self.client.post(self.login_url, data, format="json")
+
+        access_cookie = response.cookies["access_token"]
+        refresh_cookie = response.cookies["refresh_token"]
+
+        assert access_cookie["httponly"]
+        assert access_cookie["secure"]
+        assert access_cookie["samesite"] == "Lax"
+
+        assert refresh_cookie["httponly"]
+        assert refresh_cookie["secure"]
+        assert refresh_cookie["samesite"] == "Lax"
