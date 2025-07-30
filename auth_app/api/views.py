@@ -211,3 +211,31 @@ class ActivateUserView(APIView):
             return Response({'detail': 'Konto erfolgreich aktiviert'})
         else:
             return Response({'detail': 'Ungültiger oder abgelaufener Token'}, status=400)
+
+class LogoutView(APIView):
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+        
+        if refresh_token is None:
+            return Response(
+                {"detail": "Refresh token not found in cookies."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except Exception:
+            return Response(
+                {"detail": "Invalid or already blacklisted token."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        response = Response({
+            "detail": "Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid."
+        }, status=status.HTTP_200_OK)
+
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        
+        return response
