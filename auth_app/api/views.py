@@ -255,8 +255,8 @@ class PasswordResetView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # Sicherheitshalber geben wir dieselbe Erfolgsmeldung zurück, um Enumeration zu verhindern
-            return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_200_OK)
+           
+            return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_204_NO_CONTENT)
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
@@ -282,44 +282,30 @@ class PasswordResetView(APIView):
 
         return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_200_OK)
 
-#----------------------reset password without enumeration catch --------------------------------------------------------------------------
 
-# class PasswordResetView(APIView):
-#     permission_classes = [AllowAny]
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
 
-#     def post(self, request):
-#         email = request.data.get("email")
-#         if not email:
-#             return Response({"detail": "Email field is required."}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, uidb64, token):
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
 
-#         try:
-#             user = User.objects.get(email=email)
-#         except User.DoesNotExist:
-#             # Sicherheitshalber geben wir dieselbe Erfolgsmeldung zurück, um Enumeration zu verhindern
-#             return Response({"detail": "Your Email is not in our Database"}, status=status.HTTP_400_BAD_REQUEST)
+        if not new_password or not confirm_password:
+            return Response({"detail": "Both password fields are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-#         uid = urlsafe_base64_encode(force_bytes(user.pk))
-#         token = default_token_generator.make_token(user)
-#         reset_link = f"http://localhost:8000/api/password_reset_confirm/{uid}/{token}/"
+        if new_password != confirm_password:
+            return Response({"detail": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
 
-#         subject = 'Passwort zurücksetzen – Videoflix'
-#         text_content = f'Hallo {user.username},\n\nKlicke auf den folgenden Link, um dein Passwort zurückzusetzen:\n\n{reset_link}'
-#         html_content = f'''
-#         <p>Hallo <strong>{user.username}</strong>,</p>
-#         <p>Klicke auf den folgenden Link, um dein Passwort zurückzusetzen:</p>
-#         <p><a href="{reset_link}">{reset_link}</a></p>
-#         <p>Wenn du dies nicht angefordert hast, ignoriere diese Nachricht.</p>
-#         '''
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"detail": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
 
-#         email_msg = EmailMultiAlternatives(
-#             subject=subject,
-#             body=text_content,
-#             from_email='Videoflix <noreply@jonas-mahlburg.de>',
-#             to=[user.email]
-#         )
-#         email_msg.attach_alternative(html_content, "text/html")
-#         email_msg.send()
+        if not default_token_generator.check_token(user, token):
+            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
-#         return Response({"detail": "An email has been sent to reset your password."}, status=status.HTTP_200_OK)
-    
-#--------------------------------------------------------------------------------------------------------------------------------------------
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"detail": "Your Password has been successfully reset."}, status=status.HTTP_200_OK)

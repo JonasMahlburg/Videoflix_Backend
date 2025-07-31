@@ -1,5 +1,3 @@
-
-
 import pytest
 from django.urls import reverse
 from django.core import mail
@@ -35,21 +33,9 @@ class TestPasswordReset:
         data = {"email": "unknown@example.com"}
         response = self.client.post(self.url, data, format="json")
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data["detail"] == "An email has been sent to your password."
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.data["detail"] == "An email has been sent to reset your password."
         assert len(mail.outbox) == 0
-    
-    #----------------------------------reset password without enumeration catch test ----------------------------------
-
-    # def test_password_reset_email_not_sent_for_unknown_email(self):
-    #     data = {"email": "unknown@example.com"}
-    #     response = self.client.post(self.url, data, format="json")
-
-    #     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    #     assert response.data["detail"] == "Your Email is not in our Database"
-    #     assert len(mail.outbox) == 0
-
-    #-------------------------------------------------------------------------------------------------------------
 
     def test_password_reset_missing_email_field(self):
         data = {}
