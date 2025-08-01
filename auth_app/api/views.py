@@ -16,6 +16,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 
 User = get_user_model() 
 
@@ -39,13 +40,10 @@ class RegistrationView(APIView):
 
             subject = 'Willkommen bei Videoflix 🎬 – Aktiviere deinen Account'
             text_content = f'Danke für deine Registrierung, {saved_account.username}!\n\nKlicke auf den folgenden Link, um deinen Account zu aktivieren:\n\n{activation_link}'
-            html_content = f'''
-            <p>Hallo <strong>{saved_account.username}</strong>,</p>
-            <p>Danke, dass du dich bei <strong>Videoflix</strong> registriert hast! 🎉</p>
-            <p>Klicke auf folgenden Link, um deinen Account zu aktivieren:</p>
-            <p><a href="{activation_link}">{activation_link}</a></p>
-            <p>Viel Spaß beim Streamen!<br>Dein Videoflix-Team</p>
-            '''
+            html_content = render_to_string('emails/activation_email.html', {
+                                                                                'username': saved_account.username,
+                                                                                'activation_link': activation_link
+                                                                            })
 
             email = EmailMultiAlternatives(
                 subject=subject,
@@ -93,6 +91,11 @@ class HelloWorldView(APIView):
             # Token ist ungültig oder der Benutzer existiert nicht
             return Response({"message": "Activation link is invalid or has expired!"}, status=status.HTTP_400_BAD_REQUEST)
 
+
+# from django.views.generic import TemplateView
+
+# class HelloWorldView(TemplateView):
+#     template_name = "registration_success.html"
     
 # ... (deine anderen Views CookieTokenObtainPairView, CookieTokenRefreshView, ActivateUserView bleiben wie sie sind,
 # mit der oben genannten Anpassung im CustomTokenObtainPairSerializer)
@@ -159,7 +162,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             samesite="Lax"
         )
 
-        # Do not override response.data here
+       
         return response
 
 class CookieTokenRefreshView(TokenRefreshView):
@@ -264,12 +267,10 @@ class PasswordResetView(APIView):
 
         subject = 'Passwort zurücksetzen – Videoflix'
         text_content = f'Hallo {user.username},\n\nKlicke auf den folgenden Link, um dein Passwort zurückzusetzen:\n\n{reset_link}'
-        html_content = f'''
-        <p>Hallo <strong>{user.username}</strong>,</p>
-        <p>Klicke auf den folgenden Link, um dein Passwort zurückzusetzen:</p>
-        <p><a href="{reset_link}">{reset_link}</a></p>
-        <p>Wenn du dies nicht angefordert hast, ignoriere diese Nachricht.</p>
-        '''
+        html_content = render_to_string('emails/password_reset_email.html', {
+                                                                                'username': user.username,
+                                                                                'reset_link': reset_link
+                                                                            })
 
         email_msg = EmailMultiAlternatives(
             subject=subject,
