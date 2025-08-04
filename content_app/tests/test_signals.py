@@ -1,22 +1,19 @@
 import os
 from unittest.mock import patch, Mock
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.conf import settings
 import pytest
 
 from content_app.models import Video
 
-# We need to patch both `os.remove` and `convert_480p` in this test suite
-# because creating a video instance triggers the post_save signal.
+# Diese Testklasse prüft das post_delete-Signal, das die Videodatei löscht.
 @patch('content_app.signals.os.remove')
-@patch('content_app.signals.convert_480p')
 class TestFileDeletionSignals:
     """
-    Tests for the post_delete signal handler.
+    Tests für den post_delete Signal-Handler, der die physische Datei löscht.
     """
-    def test_auto_delete_file_on_delete_with_file(self, mock_convert_480p, mock_os_remove, db):
+    def test_auto_delete_file_on_delete_with_file(self, mock_os_remove, db):
         """
-        Tests if os.remove is called when a video with a file is deleted.
+        Testet, ob os.remove aufgerufen wird, wenn ein Video mit einer Datei gelöscht wird.
         """
         dummy_file_content = b"This is a dummy video file."
         video_file = SimpleUploadedFile(
@@ -25,101 +22,122 @@ class TestFileDeletionSignals:
             content_type="video/mp4"
         )
         
+        # Erstelle ein Video-Objekt mit einer zugehörigen Datei
         video = Video.objects.create(title="Video to Delete", video_file=video_file)
         
-        # Get the actual path that the signal handler will receive
+        # Holen Sie sich den tatsächlichen Dateipfad, den der Signal-Handler empfängt
         file_path = video.video_file.path
 
-        # Delete the model instance, which should trigger the signal
+        # Lösche die Modell-Instanz, was das Signal auslösen sollte
         video.delete()
         
-        # Assert that our mocked os.remove was called once with the correct path
+        # Überprüfe, dass unser gemockter os.remove genau einmal mit dem korrekten Pfad aufgerufen wurde
         mock_os_remove.assert_called_once_with(file_path)
-        
-        # Check that the post_save signal did run during the create() call
-        mock_convert_480p.delay.assert_called_once()
 
-    def test_auto_delete_file_on_delete_no_file(self, mock_convert_480p, mock_os_remove, db):
+    def test_auto_delete_file_on_delete_no_file(self, mock_os_remove, db):
         """
-        Tests that no file deletion is attempted when no video_file exists.
+        Testet, dass kein Dateilöschversuch unternommen wird, wenn kein video_file-Feld existiert.
         """
+        # Erstelle ein Video ohne Datei
         video = Video.objects.create(title="Video without filefield")
         
-        # Delete the model instance
+        # Lösche die Modell-Instanz
         video.delete()
         
-        # Assert that os.remove was never called
+        # Überprüfe, dass os.remove nie aufgerufen wurde
         mock_os_remove.assert_not_called()
-        
-        # Check that the post_save signal did not run during the create() call
-        mock_convert_480p.delay.assert_not_called()
 
-@patch('content_app.signals.convert_480p')
+# Diese Testklasse prüft das post_save-Signal, das einen RQ-Job in die Warteschlange stellt.
+# Wir patchen `django_rq.get_queue` und `Video.objects.get`, um die Logik zu isolieren.
+@patch('content_app.signals.django_rq.get_queue')
 class TestVideoPostSaveSignal:
     """
-    Tests for the post_save signal handler.
+    Tests für den post_save Signal-Handler, der einen django-rq Job startet.
     """
-    def test_video_post_save_new_video(self, mock_convert_480p, db):
+    def test_video_post_save_new_video(self, mock_get_queue, db):
         """
-        Tests that the convert_480p task is called when a new video with a file is created.
+        Testet, ob der `convert_480p`-Task in die Warteschlange gestellt wird,
+        wenn ein neues Video mit einer Datei erstellt wird.
         """
+        # Erstelle ein Mock für die Warteschlange
+        mock_queue = Mock()
+        mock_get_queue.return_value = mock_queue
+
         dummy_file = SimpleUploadedFile("dummy.mp4", b"dummy content", content_type="video/mp4")
         video = Video.objects.create(title="Test Video", description="A Test", video_file=dummy_file)
         
-        # Assert that the delay method of our mock was called once with the video's file path
-        mock_convert_480p.delay.assert_called_once_with(video.video_file.path)
+        # Überprüfe, dass `enqueue` genau einmal mit dem richtigen Task und Pfad aufgerufen wurde.
+        mock_queue.enqueue.assert_called_once_with('content_app.tasks.convert_480p', video.video_file.path)
 
     @patch('content_app.signals.Video.objects.get')
-    def test_video_post_save_existing_video(self, mock_get, mock_convert_480p, db):
+    def test_video_post_save_existing_video_with_file_update(self, mock_get, mock_get_queue, db):
         """
-        Tests that the convert_480p task is called when an existing video is updated.
-        
-        We mock `Video.objects.get` to simulate the video's state before the update,
-        allowing the signal handler to correctly detect a file change.
+        Testet, ob der `convert_480p`-Task in die Warteschlange gestellt wird,
+        wenn die Videodatei eines bestehenden Videos aktualisiert wird.
         """
-        # Create an initial video with a file
-        dummy_file = SimpleUploadedFile("existing.mp4", b"dummy content", content_type="video/mp4")
-        video = Video.objects.create(title="Existing Video", video_file=dummy_file)
-        
-        # Reset the conversion mock from the create call
-        mock_convert_480p.delay.reset_mock()
+        mock_queue = Mock()
+        mock_get_queue.return_value = mock_queue
 
-        # Configure the mock `get` to return an old video instance with the original path
+        # Erstelle ein anfängliches Video mit einer Datei
+        initial_file = SimpleUploadedFile("existing.mp4", b"dummy content", content_type="video/mp4")
+        video = Video.objects.create(title="Existing Video", video_file=initial_file)
+        
+        # Setze den Mock von `enqueue` vom Erstellungsaufruf zurück
+        mock_queue.enqueue.reset_mock()
+
+        # Konfiguriere den Mock `get` so, dass er eine alte Video-Instanz mit dem ursprünglichen Pfad zurückgibt.
+        # Dies ist notwendig, damit die Signallogik eine Dateiänderung erkennt.
         old_video_mock = Mock()
         old_video_mock.video_file.path = video.video_file.path
         mock_get.return_value = old_video_mock
         
-        # Create a new file to simulate the update
+        # Erstelle eine neue Datei, um die Aktualisierung zu simulieren
         updated_file = SimpleUploadedFile("updated.mp4", b"updated content", content_type="video/mp4")
         video.video_file = updated_file
         video.description = "Updated description"
         video.save()
         
-        # Assert that the mock was called once with the path of the *new* file
-        mock_convert_480p.delay.assert_called_once_with(video.video_file.path)
+        # Überprüfe, dass `enqueue` einmal mit dem Pfad der neuen Datei aufgerufen wurde
+        mock_queue.enqueue.assert_called_once_with('content_app.tasks.convert_480p', video.video_file.path)
 
-    def test_video_post_save_no_file(self, mock_convert_480p, db):
+    @patch('content_app.signals.Video.objects.get')
+    def test_video_post_save_existing_video_no_file_update(self, mock_get, mock_get_queue, db):
         """
-        Tests that the convert_480p task is NOT called if no video file is provided.
+        Testet, dass der `convert_480p`-Task NICHT in die Warteschlange gestellt wird,
+        wenn ein bestehendes Video gespeichert wird, aber die Datei unverändert bleibt.
         """
-        video = Video.objects.create(title="Video without filefield")
-        
-        # The signal handler should not call the conversion task
-        mock_convert_480p.delay.assert_not_called()
+        mock_queue = Mock()
+        mock_get_queue.return_value = mock_queue
 
-    def test_video_post_save_with_no_file_update(self, mock_convert_480p, db):
-        """
-        Tests that the conversion task is NOT called if the video file field is not changed.
-        """
-        dummy_file = SimpleUploadedFile("no_update.mp4", b"dummy content", content_type="video/mp4")
-        video = Video.objects.create(title="No Update Test", video_file=dummy_file)
+        # Erstelle ein anfängliches Video mit einer Datei
+        initial_file = SimpleUploadedFile("existing.mp4", b"dummy content", content_type="video/mp4")
+        video = Video.objects.create(title="Existing Video", video_file=initial_file)
         
-        mock_convert_480p.delay.reset_mock()
+        mock_queue.enqueue.reset_mock()
+
+        # Konfiguriere den Mock `get` so, dass er eine alte Video-Instanz mit dem gleichen Pfad zurückgibt.
+        old_video_mock = Mock()
+        old_video_mock.video_file.path = video.video_file.path
+        mock_get.return_value = old_video_mock
         
-        video.description = "Just a description update"
+        # Ändere ein Feld, das nicht die Datei ist
+        video.description = "Updated description"
         video.save()
         
-        mock_convert_480p.delay.assert_not_called()
+        # Überprüfe, dass `enqueue` nicht aufgerufen wurde
+        mock_queue.enqueue.assert_not_called()
+
+    def test_video_post_save_no_file(self, mock_get_queue, db):
+        """
+        Testet, dass der `convert_480p`-Task NICHT aufgerufen wird, wenn kein Video-Datei-Feld vorhanden ist.
+        """
+        mock_queue = Mock()
+        mock_get_queue.return_value = mock_queue
+
+        video = Video.objects.create(title="Video without filefield")
+        
+        # Der Signal-Handler sollte den Conversion-Task nicht aufrufen
+        mock_queue.enqueue.assert_not_called()
 
 
 
