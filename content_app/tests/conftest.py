@@ -1,5 +1,3 @@
-# conftest.py
-# 
 
 import os
 import django
