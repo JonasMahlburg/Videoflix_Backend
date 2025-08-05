@@ -1,71 +1,55 @@
 import os
-import logging
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Video
-from .tasks import convert_480p, convert_720p, convert_1080p
+from .tasks import convert_480p, convert_720p, convert_1080p, generate_thumbnail
 import django_rq
+import logging
 
+logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Video)
 def video_post_save(sender, instance, created, **kwargs):
-    print('Video wurde gespeichert')
+    """
+    Handles post-save signal for the Video model.
+
+    If the instance is newly created, enqueue tasks to generate a thumbnail
+    and convert the video into 480p, 720p, and 1080p resolutions.
+    """
     if created:
-        print('New video created')
+        print(f'Starte Konvertierung für Video {instance.pk}')
         queue = django_rq.get_queue('default', autocommit=True)
-        queue.enqueue(convert_480p, instance.video_file.path)
-        queue.enqueue(convert_720p, instance.video_file.path)
-        queue.enqueue(convert_1080p, instance.video_file.path)
+        queue.enqueue('content_app.tasks.generate_thumbnail', instance.pk)
+        queue.enqueue(convert_480p, instance.pk)
+        queue.enqueue(convert_720p, instance.pk)
+        queue.enqueue(convert_1080p, instance.pk)
         
 
 @receiver(post_delete, sender=Video)
-def auto_delete_file_on_delete(sender, instance, **kwargs):
-
-    if instance.video_file:
-        if os.path.isfile(instance.video_file.path):
-            os.remove(instance.video_file.path)
-
-# logger = logging.getLogger(__name__)
-
-# @receiver(post_save, sender=Video)
-# def video_post_save(sender, instance, created, **kwargs):
-#     """
-#     Signal handler that triggers a video conversion task when a video file is created or updated.
+def auto_delete_video_files(sender, instance, **kwargs):
+    """
+    Deletes all associated video files and the generated thumbnail after the Video model instance is deleted.
+    """
+    print(f'Lösche Dateien für Video {instance.pk}')
     
-#     This handler now includes a check to ensure `instance.video_file` exists before
-#     attempting to access its path, which prevents a ValueError.
-#     """
-#     logger.info("Video wurde gespeichert")
-#     if instance.video_file:
-#         # Check if the video_file has changed
-#         try:
-#             old_video = sender.objects.get(pk=instance.pk)
-#             if old_video.video_file and old_video.video_file.path != instance.video_file.path:
-#                 logger.info("Video file updated, starting conversion.")
-#                 convert_480p.delay(instance.video_file.path)
-#             elif created:
-#                 logger.info("New video created, starting conversion.")
-#                 convert_480p.delay(instance.video_file.path)
-#             else:
-#                 logger.info("Video saved, but file did not change. No conversion needed.")
-#         except sender.DoesNotExist:
-#             logger.info("New video created, starting conversion.")
-#             convert_480p.delay(instance.video_file.path)
-#     else:
-#         logger.info("Video saved without a file. No conversion needed.")
+    file_fields = [
+        instance.video_file,
+        instance.video_480p,
+        instance.video_720p,
+        instance.video_1080p,
+    ]
 
-
-# @receiver(post_delete, sender=Video)
-# def auto_delete_file_on_delete(sender, instance, **kwargs):
-#     """
-#     Deletes the video file from the filesystem when the corresponding Video object is deleted.
+    # Thumbnail-URL in Dateipfad umwandeln und anhängen
+    if instance.thumbnail_url:
+        from django.conf import settings
+        thumbnail_path = os.path.join(settings.MEDIA_ROOT, instance.thumbnail_url)
+        file_fields.append(thumbnail_path)
     
-#     This handler now checks if `instance.video_file` exists before attempting to delete it.
-#     """
-#     if instance.video_file:
-#         if os.path.isfile(instance.video_file.path):
-#             os.remove(instance.video_file.path)
-#             logger.info(f"Deleted file: {instance.video_file.path}")
-#         else:
-#             logger.warning(f"File not found for deletion: {instance.video_file.path}")
-
+    for file_field in file_fields:
+        # file_field kann ein FileField oder ein Pfadstring sein
+        path = file_field.path if hasattr(file_field, 'path') else file_field
+        if path and os.path.isfile(path):
+            os.remove(path)
+            print(f'Datei gelöscht: {path}')
+        elif path:
+            logger.warning(f"Datei nicht gefunden oder Pfad ungültig für Löschung: {path}")
