@@ -2,7 +2,7 @@ import os
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Video
-from .tasks import convert_480p, convert_720p, convert_1080p, generate_thumbnail
+from .tasks import convert_480p, convert_720p, convert_1080p, generate_thumbnail, generate_hls_playlist
 import django_rq
 import logging
 
@@ -23,6 +23,9 @@ def video_post_save(sender, instance, created, **kwargs):
         queue.enqueue(convert_480p, instance.pk)
         queue.enqueue(convert_720p, instance.pk)
         queue.enqueue(convert_1080p, instance.pk)
+        queue.enqueue(generate_hls_playlist, instance.pk, '480')
+        queue.enqueue(generate_hls_playlist, instance.pk, '720')
+        queue.enqueue(generate_hls_playlist, instance.pk, '1080')
         
 
 @receiver(post_delete, sender=Video)
@@ -38,15 +41,12 @@ def auto_delete_video_files(sender, instance, **kwargs):
         instance.video_720p,
         instance.video_1080p,
     ]
-
-    # Thumbnail-URL in Dateipfad umwandeln und anhängen
     if instance.thumbnail_url:
         from django.conf import settings
         thumbnail_path = os.path.join(settings.MEDIA_ROOT, instance.thumbnail_url)
         file_fields.append(thumbnail_path)
     
     for file_field in file_fields:
-        # file_field kann ein FileField oder ein Pfadstring sein
         path = file_field.path if hasattr(file_field, 'path') else file_field
         if path and os.path.isfile(path):
             os.remove(path)
