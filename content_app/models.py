@@ -1,6 +1,7 @@
 from django.db import models
 from datetime import date
 
+
 class Video(models.Model):
     """
     Represents a video uploaded to the platform.

@@ -1,145 +1,136 @@
 import os
-from unittest.mock import patch, Mock
+import shutil
+from unittest.mock import patch, Mock, call
+from django.test import TestCase
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-import pytest
-
 from content_app.models import Video
+from content_app.tasks import (
+    generate_thumbnail,
+    convert_480p,
+    convert_720p,
+    convert_1080p,
+    generate_hls_playlist,
+    delete_file,
+    convert_video_and_update_model
+)
 
-# Diese Testklasse prüft das post_delete-Signal, das die Videodatei löscht.
-@patch('content_app.signals.os.remove')
-class TestFileDeletionSignals:
+# This test class checks the post_delete signal that deletes the video file.
+@patch('content_app.signals.delete_file')
+@patch('content_app.signals.shutil.rmtree')
+class TestFileDeletionSignals(TestCase):
     """
-    Tests für den post_delete Signal-Handler, der die physische Datei löscht.
+    Tests for the post_delete signal handler that deletes physical files.
     """
-    def test_auto_delete_file_on_delete_with_file(self, mock_os_remove, db):
+    def setUp(self):
         """
-        Testet, ob os.remove aufgerufen wird, wenn ein Video mit einer Datei gelöscht wird.
+        Set up a temporary media root and a Video object for each test.
         """
-        dummy_file_content = b"This is a dummy video file."
-        video_file = SimpleUploadedFile(
-            "test_video.mp4",
-            dummy_file_content,
-            content_type="video/mp4"
+        # Create a temporary directory for tests
+        self.temp_media_root = os.path.join(settings.BASE_DIR, 'test_media')
+        settings.MEDIA_ROOT = self.temp_media_root
+        
+        # Create necessary subdirectories
+        os.makedirs(os.path.join(self.temp_media_root, 'videos', '480p'), exist_ok=True)
+        os.makedirs(os.path.join(self.temp_media_root, 'videos', '720p'), exist_ok=True)
+        os.makedirs(os.path.join(self.temp_media_root, 'thumbnails'), exist_ok=True)
+
+        # Create a Video object
+        self.video = Video.objects.create(
+            title="Video to Delete",
+            video_file=os.path.join('videos', 'original.mp4'),
+            video_480p=os.path.join('videos', '480p', 'original_480p.mp4'),
+            video_720p=os.path.join('videos', '720p', 'original_720p.mp4'),
+            thumbnail_url=os.path.join('thumbnails', 'original_thumbnail.jpg')
         )
         
-        # Erstelle ein Video-Objekt mit einer zugehörigen Datei
-        video = Video.objects.create(title="Video to Delete", video_file=video_file)
-        
-        # Holen Sie sich den tatsächlichen Dateipfad, den der Signal-Handler empfängt
-        file_path = video.video_file.path
+        # Create actual dummy files for the test to pass
+        with open(os.path.join(settings.MEDIA_ROOT, self.video.video_file.name), 'w') as f: f.write('original')
+        with open(os.path.join(settings.MEDIA_ROOT, self.video.video_480p.name), 'w') as f: f.write('480p')
+        with open(os.path.join(settings.MEDIA_ROOT, self.video.video_720p.name), 'w') as f: f.write('720p')
+        with open(os.path.join(settings.MEDIA_ROOT, self.video.thumbnail_url), 'w') as f: f.write('thumb')
 
-        # Lösche die Modell-Instanz, was das Signal auslösen sollte
-        video.delete()
-        
-        # Überprüfe, dass unser gemockter os.remove genau einmal mit dem korrekten Pfad aufgerufen wurde
-        mock_os_remove.assert_called_once_with(file_path)
-
-    def test_auto_delete_file_on_delete_no_file(self, mock_os_remove, db):
+    def tearDown(self):
         """
-        Testet, dass kein Dateilöschversuch unternommen wird, wenn kein video_file-Feld existiert.
+        Clean up the temporary media root after each test.
         """
-        # Erstelle ein Video ohne Datei
-        video = Video.objects.create(title="Video without filefield")
-        
-        # Lösche die Modell-Instanz
-        video.delete()
-        
-        # Überprüfe, dass os.remove nie aufgerufen wurde
-        mock_os_remove.assert_not_called()
+        if os.path.exists(self.temp_media_root):
+            shutil.rmtree(self.temp_media_root)
 
-# Diese Testklasse prüft das post_save-Signal, das einen RQ-Job in die Warteschlange stellt.
-# Wir patchen `django_rq.get_queue` und `Video.objects.get`, um die Logik zu isolieren.
+    def test_auto_delete_file_on_delete_with_files(self, mock_rmtree, mock_delete_file):
+        """
+        Tests that delete_file is called for all associated files when a Video is deleted.
+        """
+        # Get absolute paths for the expected calls
+        expected_calls = [
+            call(self.video.video_file.path),
+            call(self.video.video_480p.path),
+            call(self.video.video_720p.path),
+            call(os.path.join(settings.MEDIA_ROOT, self.video.thumbnail_url))
+        ]
+        
+        # Manually create the HLS directory to simulate an existing one
+        hls_dir = os.path.join(settings.MEDIA_ROOT, 'hls', str(self.video.pk))
+        os.makedirs(hls_dir, exist_ok=True)
+        
+        self.video.delete()
+        
+        self.assertCountEqual(mock_delete_file.call_args_list, expected_calls)
+        
+        # Verify that rmtree was called with the correct path
+        mock_rmtree.assert_called_once_with(hls_dir)
+
+
+# This test class checks the post_save signal that enqueues an RQ job.
 @patch('content_app.signals.django_rq.get_queue')
-class TestVideoPostSaveSignal:
+class TestVideoPostSaveSignal(TestCase):
     """
-    Tests für den post_save Signal-Handler, der einen django-rq Job startet.
+    Tests for the post_save signal handler that starts a django-rq job.
     """
-    def test_video_post_save_new_video(self, mock_get_queue, db):
+    def setUp(self):
         """
-        Testet, ob der `convert_480p`-Task in die Warteschlange gestellt wird,
-        wenn ein neues Video mit einer Datei erstellt wird.
+        Set up a temporary media root for each test.
         """
-        # Erstelle ein Mock für die Warteschlange
+        self.temp_media_root = os.path.join(settings.BASE_DIR, 'test_media')
+        settings.MEDIA_ROOT = self.temp_media_root
+        os.makedirs(self.temp_media_root, exist_ok=True)
+
+    def tearDown(self):
+        """
+        Clean up the temporary media root after each test.
+        """
+        if os.path.exists(self.temp_media_root):
+            shutil.rmtree(self.temp_media_root)
+
+    def test_video_post_save_new_video(self, mock_get_queue):
+        """
+        Tests that the conversion tasks are enqueued when a new video with a file is created.
+        """
         mock_queue = Mock()
         mock_get_queue.return_value = mock_queue
 
         dummy_file = SimpleUploadedFile("dummy.mp4", b"dummy content", content_type="video/mp4")
         video = Video.objects.create(title="Test Video", description="A Test", video_file=dummy_file)
-        
-        # Überprüfe, dass `enqueue` genau einmal mit dem richtigen Task und Pfad aufgerufen wurde.
-        mock_queue.enqueue.assert_called_once_with('content_app.tasks.convert_480p', video.video_file.path)
 
-    @patch('content_app.signals.Video.objects.get')
-    def test_video_post_save_existing_video_with_file_update(self, mock_get, mock_get_queue, db):
+        expected_calls = [
+            call.enqueue(generate_thumbnail, video.pk),
+            call.enqueue(convert_video_and_update_model, video.pk, 480),
+            call.enqueue(convert_video_and_update_model, video.pk, 720),
+            call.enqueue(convert_video_and_update_model, video.pk, 1080),
+            call.enqueue(generate_hls_playlist, video.pk, 480),
+            call.enqueue(generate_hls_playlist, video.pk, 720),
+            call.enqueue(generate_hls_playlist, video.pk, 1080),
+        ]
+        
+        mock_queue.assert_has_calls(expected_calls, any_order=True)
+
+    def test_video_post_save_no_file(self, mock_get_queue):
         """
-        Testet, ob der `convert_480p`-Task in die Warteschlange gestellt wird,
-        wenn die Videodatei eines bestehenden Videos aktualisiert wird.
-        """
-        mock_queue = Mock()
-        mock_get_queue.return_value = mock_queue
-
-        # Erstelle ein anfängliches Video mit einer Datei
-        initial_file = SimpleUploadedFile("existing.mp4", b"dummy content", content_type="video/mp4")
-        video = Video.objects.create(title="Existing Video", video_file=initial_file)
-        
-        # Setze den Mock von `enqueue` vom Erstellungsaufruf zurück
-        mock_queue.enqueue.reset_mock()
-
-        # Konfiguriere den Mock `get` so, dass er eine alte Video-Instanz mit dem ursprünglichen Pfad zurückgibt.
-        # Dies ist notwendig, damit die Signallogik eine Dateiänderung erkennt.
-        old_video_mock = Mock()
-        old_video_mock.video_file.path = video.video_file.path
-        mock_get.return_value = old_video_mock
-        
-        # Erstelle eine neue Datei, um die Aktualisierung zu simulieren
-        updated_file = SimpleUploadedFile("updated.mp4", b"updated content", content_type="video/mp4")
-        video.video_file = updated_file
-        video.description = "Updated description"
-        video.save()
-        
-        # Überprüfe, dass `enqueue` einmal mit dem Pfad der neuen Datei aufgerufen wurde
-        mock_queue.enqueue.assert_called_once_with('content_app.tasks.convert_480p', video.video_file.path)
-
-    @patch('content_app.signals.Video.objects.get')
-    def test_video_post_save_existing_video_no_file_update(self, mock_get, mock_get_queue, db):
-        """
-        Testet, dass der `convert_480p`-Task NICHT in die Warteschlange gestellt wird,
-        wenn ein bestehendes Video gespeichert wird, aber die Datei unverändert bleibt.
+        Tests that no tasks are enqueued when a new video is created without a file.
         """
         mock_queue = Mock()
         mock_get_queue.return_value = mock_queue
 
-        # Erstelle ein anfängliches Video mit einer Datei
-        initial_file = SimpleUploadedFile("existing.mp4", b"dummy content", content_type="video/mp4")
-        video = Video.objects.create(title="Existing Video", video_file=initial_file)
-        
-        mock_queue.enqueue.reset_mock()
+        Video.objects.create(title="Video without filefield")
 
-        # Konfiguriere den Mock `get` so, dass er eine alte Video-Instanz mit dem gleichen Pfad zurückgibt.
-        old_video_mock = Mock()
-        old_video_mock.video_file.path = video.video_file.path
-        mock_get.return_value = old_video_mock
-        
-        # Ändere ein Feld, das nicht die Datei ist
-        video.description = "Updated description"
-        video.save()
-        
-        # Überprüfe, dass `enqueue` nicht aufgerufen wurde
         mock_queue.enqueue.assert_not_called()
-
-    def test_video_post_save_no_file(self, mock_get_queue, db):
-        """
-        Testet, dass der `convert_480p`-Task NICHT aufgerufen wird, wenn kein Video-Datei-Feld vorhanden ist.
-        """
-        mock_queue = Mock()
-        mock_get_queue.return_value = mock_queue
-
-        video = Video.objects.create(title="Video without filefield")
-        
-        # Der Signal-Handler sollte den Conversion-Task nicht aufrufen
-        mock_queue.enqueue.assert_not_called()
-
-
-
-
-

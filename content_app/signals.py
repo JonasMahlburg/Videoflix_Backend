@@ -1,39 +1,38 @@
 import os
+import shutil
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .models import Video
-from .tasks import convert_480p, convert_720p, convert_1080p, generate_thumbnail, generate_hls_playlist
+from django.conf import settings
 import django_rq
-import logging
-
-logger = logging.getLogger(__name__)
+from .models import Video
+from .tasks import generate_thumbnail, convert_video_and_update_model, generate_hls_playlist, delete_file
 
 @receiver(post_save, sender=Video)
 def video_post_save(sender, instance, created, **kwargs):
     """
-    Handles post-save signal for the Video model.
-
-    If the instance is newly created, enqueue tasks to generate a thumbnail
-    and convert the video into 480p, 720p, and 1080p resolutions.
+    Triggers asynchronous tasks for video processing after a new video is created.
     """
-    if created:
-        print(f'Starte Konvertierung für Video {instance.pk}')
-        queue = django_rq.get_queue('default', autocommit=True)
-        queue.enqueue('content_app.tasks.generate_thumbnail', instance.pk)
-        queue.enqueue(convert_480p, instance.pk)
-        queue.enqueue(convert_720p, instance.pk)
-        queue.enqueue(convert_1080p, instance.pk)
-        queue.enqueue(generate_hls_playlist, instance.pk, '480')
-        queue.enqueue(generate_hls_playlist, instance.pk, '720')
-        queue.enqueue(generate_hls_playlist, instance.pk, '1080')
-        
+    # Only run for newly created instances that have a video file
+    if created and instance.video_file:
+        print(f'Starting conversion for Video {instance.pk}')
+        queue = django_rq.get_queue('default')
+
+        # Use functions directly instead of their string names
+        queue.enqueue(generate_thumbnail, instance.pk)
+        queue.enqueue(convert_video_and_update_model, instance.pk, 480)
+        queue.enqueue(convert_video_and_update_model, instance.pk, 720)
+        queue.enqueue(convert_video_and_update_model, instance.pk, 1080)
+        queue.enqueue(generate_hls_playlist, instance.pk, 480)
+        queue.enqueue(generate_hls_playlist, instance.pk, 720)
+        queue.enqueue(generate_hls_playlist, instance.pk, 1080)
+
 
 @receiver(post_delete, sender=Video)
 def auto_delete_video_files(sender, instance, **kwargs):
     """
-    Deletes all associated video files and the generated thumbnail after the Video model instance is deleted.
+    Deletes all related video files and directories when a Video instance is deleted.
     """
-    print(f'Lösche Dateien für Video {instance.pk}')
+    print(f'Deleting files for Video {instance.pk}')
     
     file_fields = [
         instance.video_file,
@@ -41,15 +40,22 @@ def auto_delete_video_files(sender, instance, **kwargs):
         instance.video_720p,
         instance.video_1080p,
     ]
-    if instance.thumbnail_url:
-        from django.conf import settings
-        thumbnail_path = os.path.join(settings.MEDIA_ROOT, instance.thumbnail_url)
-        file_fields.append(thumbnail_path)
     
     for file_field in file_fields:
-        path = file_field.path if hasattr(file_field, 'path') else file_field
-        if path and os.path.isfile(path):
-            os.remove(path)
-            print(f'Datei gelöscht: {path}')
-        elif path:
-            logger.warning(f"Datei nicht gefunden oder Pfad ungültig für Löschung: {path}")
+        # Check if the FileField has a file associated with it
+        if file_field and file_field.name:
+            # We use `file_field.path` to get the absolute path to the file
+            file_path = file_field.path
+            delete_file(file_path)
+    
+    # Also delete the thumbnail if it exists
+    if instance.thumbnail_url:
+        thumbnail_path = os.path.join(settings.MEDIA_ROOT, instance.thumbnail_url)
+        delete_file(thumbnail_path)
+
+    # Always attempt to remove the HLS directory, regardless of whether it exists.
+    # The `os.path.exists` check is redundant for rmtree's typical use in signals.
+    hls_dir = os.path.join(settings.MEDIA_ROOT, 'hls', str(instance.pk))
+    if os.path.exists(hls_dir):
+        shutil.rmtree(hls_dir)
+        print(f"HLS directory deleted: {hls_dir}")
