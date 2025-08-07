@@ -29,54 +29,83 @@ Es stellt eine API für User-Registrierung, Authentifizierung, Video-Upload, Vid
 - FFmpeg (für Videoverarbeitung)
 - pipenv oder pip
 
-### Installation
+---
 
-1. **Repository klonen**
-   ```bash
-   git clone <REPO-URL>
-   cd Videoflix/Backend
-   ```
+## Projekt mit Docker aufsetzen
 
-2. **Abhängigkeiten installieren**
-   ```bash
-   pip install -r requirements.txt
-   ```
+Falls du noch keine Berührungspunkte mit Docker hatest, folge dieser Schritt-für-Schritt-Anleitung:
 
-3. **.env Datei anlegen**  
-   Beispiel:
-   ```
-   SECRET_KEY=dein-geheimer-key
-   DB_NAME=videoflix_db
-   DB_USER=videoflix_user
-   DB_PASSWORD=dein-db-passwort
-   DB_HOST=localhost
-   DB_PORT=5432
-   REDIS_HOST=localhost
-   REDIS_PORT=6379
-   EMAIL_HOST=smtp.example.com
-   EMAIL_HOST_USER=dein@email.de
-   EMAIL_HOST_PASSWORD=dein-email-passwort
-   ```
+### 1. **Docker & Docker Compose installieren**
 
-4. **Migrationen anwenden**
-   ```bash
-   python manage.py migrate
-   ```
+- **Mac:**  
+  Lade [Docker Desktop für Mac](https://www.docker.com/products/docker-desktop/) herunter und installiere es.
+- **Windows:**  
+  Lade [Docker Desktop für Windows](https://www.docker.com/products/docker-desktop/) herunter und installiere es.
+- **Linux:**  
+  Folge der [offiziellen Installationsanleitung](https://docs.docker.com/engine/install/).
 
-5. **Superuser anlegen**
-   ```bash
-   python manage.py createsuperuser
-   ```
+Starte Docker Desktop nach der Installation.
 
-6. **RQ Worker starten**
-   ```bash
-   python manage.py rqworker default
-   ```
+### 2. **Projekt klonen**
 
-7. **Server starten**
-   ```bash
-   python manage.py runserver
-   ```
+```bash
+git clone <REPO-URL>
+cd Videoflix/Backend
+```
+
+### 3. **.env Datei anlegen**
+
+Lege im Backend-Ordner eine Datei `.env` mit folgendem Inhalt an (passe die Werte an):
+
+```
+SECRET_KEY=dein-geheimer-key
+DB_NAME=videoflix_db
+DB_USER=videoflix_user
+DB_PASSWORD=dein-db-passwort
+DB_HOST=db
+DB_PORT=5432
+REDIS_HOST=redis
+REDIS_PORT=6379
+EMAIL_HOST=smtp.example.com
+EMAIL_HOST_USER=dein@email.de
+EMAIL_HOST_PASSWORD=dein-email-passwort
+```
+
+**Hinweis:**  
+Für Docker müssen `DB_HOST=db` und `REDIS_HOST=redis` gesetzt sein, da die Container so heißen!
+
+### 4. **Docker-Container starten**
+
+Im Projektordner (wo die `docker-compose.yml` liegt):
+
+```bash
+docker compose up --build
+```
+
+- Beim ersten Mal werden alle Images gebaut und die Abhängigkeiten installiert.
+- Die Anwendung ist nach kurzer Zeit unter [http://localhost:8000](http://localhost:8000) erreichbar.
+
+### 5. **Superuser anlegen**
+
+Öffne ein neues Terminal und führe im laufenden Container folgenden Befehl aus:
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+Folge den Anweisungen, um einen Admin-Account zu erstellen.
+
+### 6. **Migrationen manuell ausführen (optional)**
+
+Falls nötig, kannst du Migrationen auch manuell ausführen:
+
+```bash
+docker compose exec web python manage.py migrate
+```
+
+### 7. **RQ Worker läuft automatisch**
+
+Der RQ Worker wird beim Starten des Containers automatisch mitgestartet.
 
 ---
 
@@ -101,14 +130,14 @@ Es stellt eine API für User-Registrierung, Authentifizierung, Video-Upload, Vid
 Alle Tests können mit folgendem Befehl ausgeführt werden:
 
 ```bash
-python manage.py test
+docker compose exec web python manage.py test
 ```
 
 ---
 
 ## Hinweise
 
-- Für die Videoverarbeitung muss FFmpeg installiert und im PATH verfügbar sein.
+- Für die Videoverarbeitung muss FFmpeg installiert und im PATH verfügbar sein (im Docker-Image bereits enthalten).
 - Die Medien-Dateien werden im Ordner `media/` gespeichert.
 - Für produktiven Einsatz sollten `DEBUG=False` und sichere Einstellungen gewählt werden.
 
