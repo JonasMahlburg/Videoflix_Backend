@@ -1,147 +1,167 @@
-# Videoflix Backend
+Siehst du, so kommen wir der Sache näher. Die README.md soll also zwei Installationsmethoden beinhalten: eine für Docker und eine für die manuelle Python-Einrichtung. Außerdem muss die Docker-Anleitung so einfach wie möglich sein, damit auch Einsteiger sie verstehen.
 
-Das ist das Backend der Videoflix-Plattform, entwickelt mit Django, Django REST Framework, PostgreSQL und Redis (RQ).  
-Es stellt eine API für User-Registrierung, Authentifizierung, Video-Upload, Video-Konvertierung (FFmpeg), HLS-Streaming und mehr bereit.
+Hier ist die überarbeitete README.md. Ich habe sie in zwei Hauptabschnitte für die Einrichtung unterteilt und die Docker-Anleitung mit noch einfacheren Erklärungen versehen.
 
----
+🎬 Videoflix - Backend API
+Ein robustes und skalierbares Backend für eine moderne Video-Streaming-Plattform, entwickelt mit Django, Django REST Framework, PostgreSQL und Redis (RQ). Es bietet eine umfassende API für Benutzerauthentifizierung, Video-Management, asynchrone Videoverarbeitung und HLS (HTTP Live Streaming).
 
-## Features
+✨ Features
+Kernfunktionalität
+🔐 Sichere Authentifizierung: Vollständiger Registrierungs- und Anmeldeprozess mit E-Mail-Bestätigung und sicherem, Cookie-basiertem JWT-Authentifizierungssystem (Access & Refresh Tokens).
 
-- Benutzerregistrierung mit E-Mail-Bestätigung
-- JWT-Authentifizierung (Token in HttpOnly-Cookies)
-- Passwort-Reset per E-Mail
-- Video-Upload und automatische Konvertierung in 480p, 720p, 1080p (FFmpeg)
-- Automatische Thumbnail-Erstellung
-- HLS-Streaming (M3U8/TS)
-- Admin-Interface
-- RQ-Worker für asynchrone Aufgaben (Video-Konvertierung, Thumbnail, HLS)
-- CORS-Unterstützung für Frontend-Anbindung
+🎞️ Asynchrone Videoverarbeitung: Hochgeladene Videos werden automatisch im Hintergrund verarbeitet, ohne die API zu blockieren.
 
----
+🚀 HLS Adaptive Bitrate Streaming: Videos werden in verschiedene Auflösungen (1080p, 720p, 480p) konvertiert und als HLS-Streams (Playlist .m3u8 und Segmente .ts) bereitgestellt.
 
-## Setup
+🖼️ Automatische Thumbnail-Erstellung: Für jedes Video wird automatisch ein Vorschaubild generiert.
 
-### Voraussetzungen
+✅ Umfassende API: Bietet Endpunkte für die Verwaltung und Bereitstellung von Videos und Streams.
 
-- Python 3.10+
-- PostgreSQL
-- Redis (für RQ)
-- FFmpeg (für Videoverarbeitung)
-- pipenv oder pip
+Technische Merkmale
+🐳 Containerisiert: Vollständig mit Docker und Docker Compose containerisiert für eine einfache Entwicklung und Bereitstellung.
 
----
+🔄 Asynchrone Aufgabenwarteschlange: Nutzt Redis und django-rq zur Verarbeitung rechenintensiver Aufgaben wie Videokonvertierung.
 
-## Projekt mit Docker aufsetzen
+🔧 Solides Backend: Basierend auf Django und dem Django REST Framework (DRF).
 
-Falls du noch keine Berührungspunkte mit Docker hatest, folge dieser Schritt-für-Schritt-Anleitung:
+🗃️ PostgreSQL-Datenbank: Verwendet eine leistungsstarke und zuverlässige PostgreSQL-Datenbank.
 
-### 1. **Docker & Docker Compose installieren**
+🧪 Umfassend getestet: Enthält eine detaillierte Testsuite, um die Codequalität zu sichern.
 
-- **Mac:**  
-  Lade [Docker Desktop für Mac](https://www.docker.com/products/docker-desktop/) herunter und installiere es.
-- **Windows:**  
-  Lade [Docker Desktop für Windows](https://www.docker.com/products/docker-desktop/) herunter und installiere es.
-- **Linux:**  
-  Folge der [offiziellen Installationsanleitung](https://docs.docker.com/engine/install/).
+⚙️ Umgebungsspezifische Konfiguration: Trennung von Code und Konfiguration durch .env-Dateien.
 
+🛠️ Tech Stack
+Backend: Django, Django REST Framework
+
+Datenbank: PostgreSQL
+
+Caching & Task Queue: Redis
+
+Asynchrone Aufgaben: django-rq
+
+Videoverarbeitung: FFmpeg
+
+Containerisierung: Docker, Docker Compose
+
+WSGI Server: Gunicorn
+
+🚀 Getting Started
+Es gibt zwei Wege, das Projekt aufzusetzen: mit Docker (empfohlen) oder manuell mit Python.
+
+Methode 1: Projekt mit Docker aufsetzen (Empfohlen)
+Docker macht die Einrichtung einfach, da es alle notwendigen Programme (wie Python, PostgreSQL und Redis) automatisch für dich installiert und konfiguriert. Du musst nur Docker Desktop installieren.
+
+1. Voraussetzungen
+Git: Zum Klonen des Projekts.
+
+Docker Desktop: Enthält Docker und Docker Compose. Lade es hier herunter: Docker Desktop.
 Starte Docker Desktop nach der Installation.
 
-### 2. **Projekt klonen**
+2. Projekt klonen
+Öffne dein Terminal (oder die Kommandozeile) und gib diese Befehle ein:
 
-```bash
+Bash
+
 git clone <REPO-URL>
-cd Videoflix/Backend
-```
+cd <Projektordner>
+3. Die .env-Datei vorbereiten
+Im Hauptordner des Projekts gibt es eine Datei namens env.example. Sie enthält die Standardeinstellungen. Erstelle eine Kopie davon und nenne sie .env.
 
-### 3. **.env Datei anlegen**
+Bash
 
-Lege im Backend-Ordner eine Datei `.env` mit folgendem Inhalt an (passe die Werte an):
+cp env.example .env
+Öffne die neue .env-Datei in einem Texteditor. Die Standardwerte sind für die lokale Entwicklung in der Regel in Ordnung, du musst sie also nicht unbedingt ändern.
 
-```
-SECRET_KEY=dein-geheimer-key
-DB_NAME=videoflix_db
-DB_USER=videoflix_user
-DB_PASSWORD=dein-db-passwort
-DB_HOST=db
-DB_PORT=5432
-REDIS_HOST=redis
-REDIS_PORT=6379
-EMAIL_HOST=smtp.example.com
-EMAIL_HOST_USER=dein@email.de
-EMAIL_HOST_PASSWORD=dein-email-passwort
-```
+4. Docker-Container starten
+Jetzt starten wir alle Teile des Projekts auf einmal. Dieser Befehl baut die Images (so etwas wie Vorlagen für die Programme), startet die Services (Web-API, Datenbank, Redis) und führt alle notwendigen Einrichtungsschritte aus (z. B. Datenbankmigrationen).
 
-**Hinweis:**  
-Für Docker müssen `DB_HOST=db` und `REDIS_HOST=redis` gesetzt sein, da die Container so heißen!
+Bash
 
-### 4. **Docker-Container starten**
-
-Im Projektordner (wo die `docker-compose.yml` liegt):
-
-```bash
 docker compose up --build
-```
+Tipp: Wenn du die Container im Hintergrund laufen lassen möchtest, verwende docker compose up --build -d.
 
-- Beim ersten Mal werden alle Images gebaut und die Abhängigkeiten installiert.
-- Die Anwendung ist nach kurzer Zeit unter [http://localhost:8000](http://localhost:8000) erreichbar.
+Nach ein paar Minuten ist die Anwendung unter http://localhost:8000 erreichbar.
 
-### 5. **Superuser anlegen**
+Methode 2: Manuelles Setup mit Python
+Wenn du das Projekt ohne Docker direkt auf deinem Computer ausführen möchtest, folge dieser Anleitung.
 
-Öffne ein neues Terminal und führe im laufenden Container folgenden Befehl aus:
+1. Voraussetzungen
+Python 3.10+: Stelle sicher, dass Python auf deinem System installiert ist.
 
-```bash
-docker compose exec web python manage.py createsuperuser
-```
+PostgreSQL: Installiere und starte einen PostgreSQL-Datenbankserver.
 
-Folge den Anweisungen, um einen Admin-Account zu erstellen.
+Redis: Installiere und starte einen Redis-Server.
 
-### 6. **Migrationen manuell ausführen (optional)**
+FFmpeg: Installiere FFmpeg, damit die Videoverarbeitung funktioniert.
 
-Falls nötig, kannst du Migrationen auch manuell ausführen:
+2. Projekt klonen und einrichten
+Öffne dein Terminal und führe diese Befehle aus:
 
-```bash
-docker compose exec web python manage.py migrate
-```
+Bash
 
-### 7. **RQ Worker läuft automatisch**
+git clone <REPO-URL>
+cd <Projektordner>
+Erstelle eine virtuelle Umgebung und aktiviere sie:
 
-Der RQ Worker wird beim Starten des Containers automatisch mitgestartet.
+Bash
 
----
+python -m venv venv
+# Für Windows
+.\venv\Scripts\activate
+# Für macOS/Linux
+source venv/bin/activate
+3. Abhängigkeiten installieren
+Installiere alle benötigten Python-Pakete aus der requirements.txt-Datei:
 
-## API-Endpunkte (Auszug)
+Bash
 
-| Methode | Pfad                                 | Beschreibung                       |
-|---------|--------------------------------------|------------------------------------|
-| POST    | `/api/register/`                     | Registrierung                      |
-| POST    | `/api/login/`                        | Login (JWT in Cookies)             |
-| POST    | `/api/logout/`                       | Logout (Token-Blacklist, Cookies)  |
-| POST    | `/api/password_reset/`               | Passwort-Reset anfordern           |
-| POST    | `/api/password_confirm/<uid>/<token>/` | Neues Passwort setzen              |
-| GET     | `/api/video/`                        | Liste aller Videos                 |
-| GET     | `/api/video/<id>/`                   | Einzelnes Video                    |
-| GET     | `/api/video/<id>/<auflösung>/index.m3u8` | HLS Playlist für Video             |
-| GET     | `/api/video/<id>/<auflösung>/<segment>/` | HLS Segment                        |
+pip install -r requirements.txt
+4. Die .env-Datei vorbereiten
+Erstelle eine .env-Datei, wie in der Docker-Anleitung beschrieben. Die Werte für DB_HOST und REDIS_HOST müssen hier localhost sein.
 
----
+# .env-Datei für manuelles Setup
+DB_HOST=localhost
+REDIS_HOST=localhost
+... (restliche Einstellungen)
+5. Datenbank migrieren und Superuser anlegen
+Führe die Datenbankmigrationen aus und erstelle einen Admin-Benutzer:
 
-## Tests
+Bash
 
-Alle Tests können mit folgendem Befehl ausgeführt werden:
+python manage.py migrate
+python manage.py createsuperuser
+6. Server starten
+Starte den Django-Entwicklungsserver und den RQ-Worker in zwei separaten Terminals:
 
-```bash
+Bash
+
+# Terminal 1: Django-Server starten
+python manage.py runserver
+
+# Terminal 2: RQ-Worker starten
+python manage.py rqworker
+Die Anwendung ist jetzt unter http://localhost:8000 erreichbar.
+
+📄 API-Übersicht
+Das Projekt stellt folgende Haupt-Endpunkte zur Verfügung.
+
+Methode	Pfad	Beschreibung
+POST	/api/register/	Registrierung
+POST	/api/login/	Login (JWT in Cookies)
+POST	/api/logout/	Logout (Token-Blacklist, Cookies)
+POST	/api/password_reset/	Passwort-Reset anfordern
+POST	/api/password_confirm/<uid>/<token>/	Neues Passwort setzen
+GET	/api/video/	Liste aller Videos
+GET	/api/video/<id>/	Einzelnes Video
+GET	/api/video/<id>/<auflösung>/index.m3u8	HLS Playlist für Video
+GET	/api/video/<id>/<auflösung>/<segment>/	HLS Segment
+
+In Google Sheets exportieren
+🧪 Tests ausführen
+Die gesamte Testsuite kann mit einem einzigen Befehl ausgeführt werden, während die Docker-Container laufen.
+
+Bash
+
 docker compose exec web python manage.py test
-```
-
----
-
-## Hinweise
-
-- Für die Videoverarbeitung muss FFmpeg installiert und im PATH verfügbar sein (im Docker-Image bereits enthalten).
-- Die Medien-Dateien werden im Ordner `media/` gespeichert.
-- Für produktiven Einsatz sollten `DEBUG=False` und sichere Einstellungen gewählt werden.
-
----
-
-**Lizenz:** MIT  
-**Autor:** Jonas Mahlburg
+📝 Lizenz
+Dieses Projekt ist unter der MIT-Lizenz lizenziert. Siehe die LICENSE-Datei für weitere Details.
