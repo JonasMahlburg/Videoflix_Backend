@@ -9,5 +9,7 @@ class VideoAdmin(admin.ModelAdmin):
     search_fields = ("title", "category")
     list_filter = ("category", "created_at")
     ordering = ("-created_at",)
+    fields = ("title", "description", "category", "video_file")
+
 
 

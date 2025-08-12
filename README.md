@@ -56,9 +56,22 @@ git clone <REPO-URL>  # Klont das Projekt von der Quelle
 cd <Projektordner>    # Wechselt in den Projektordner
 ```
 
-#### 3. Die .env-Datei vorbereiten
+#### 3. Die virtuelle Umgebung erstellen
 
-Im Hauptordner des Projekts gibt es eine Datei namens `env.example`. Sie enthält die Standardeinstellungen für die Umgebungsvariablen. Erstelle eine Kopie davon und nenne sie `.env`.  
+Öffne das Projekt in deinem Code Editing Programm (zum Beispiel [Visual Studio Code](https://code.visualstudio.com/download)) und öffne ein neues Terminal. Erstelle eine virtuelle Umgebung (empfohlen, um Projekt-Abhängigkeiten sauber zu halten) und aktiviere sie:  
+```bash
+python -m venv venv  # Erstellt eine virtuelle Umgebung
+
+# Für Windows:
+.\venv\Scripts\activate  # Aktiviert die virtuelle Umgebung
+
+# Für macOS/Linux:
+source venv/bin/activate  # Aktiviert die virtuelle Umgebung
+```
+
+#### 4. Die .env-Datei vorbereiten
+
+Im Hauptordner des Projekts gibt es eine Datei namens `env.template`. Sie enthält die Standardeinstellungen für die Umgebungsvariablen. Erstelle eine Kopie davon und nenne sie `.env`.  
 ```bash
 cp env.template .env  # Erstellt eine Kopie der Beispiel-Umgebungsdatei
 ```
@@ -89,7 +102,7 @@ DJANGO_SUPERUSER_PASSWORD=adminpassword
 
 > **Hinweis:** Für Docker Compose müssen `DB_HOST` und `REDIS_HOST` auf die jeweiligen Containernamen (`db` und `redis`) gesetzt werden, da die Dienste so miteinander kommunizieren. Diese sind in der `docker-compose.yml` definiert.
 
-#### 4. Docker-Container starten
+#### 5. Docker-Container starten
 
 Jetzt starten wir alle Teile des Projekts auf einmal. Dieser Befehl baut die Images (so etwas wie Vorlagen für die Programme), startet die Services (Web-API, Datenbank, Redis) und führt alle notwendigen Einrichtungsschritte aus (z. B. Datenbankmigrationen).  
 ```bash
