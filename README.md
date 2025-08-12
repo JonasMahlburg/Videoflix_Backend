@@ -1,7 +1,3 @@
-Siehst du, so kommen wir der Sache näher. Die README.md soll also zwei Installationsmethoden beinhalten: eine für Docker und eine für die manuelle Python-Einrichtung. Außerdem muss die Docker-Anleitung so einfach wie möglich sein, damit auch Einsteiger sie verstehen.
-
-Hier ist die überarbeitete README.md. Ich habe sie in zwei Hauptabschnitte für die Einrichtung unterteilt und die Docker-Anleitung mit noch einfacheren Erklärungen versehen.
-
 🎬 Videoflix - Backend API
 Ein robustes und skalierbares Backend für eine moderne Video-Streaming-Plattform, entwickelt mit Django, Django REST Framework, PostgreSQL und Redis (RQ). Es bietet eine umfassende API für Benutzerauthentifizierung, Video-Management, asynchrone Videoverarbeitung und HLS (HTTP Live Streaming).
 
