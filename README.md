@@ -60,7 +60,7 @@ cd <Projektordner>    # Wechselt in den Projektordner
 
 Im Hauptordner des Projekts gibt es eine Datei namens `env.example`. Sie enthält die Standardeinstellungen für die Umgebungsvariablen. Erstelle eine Kopie davon und nenne sie `.env`.  
 ```bash
-cp env.example .env  # Erstellt eine Kopie der Beispiel-Umgebungsdatei
+cp env.template .env  # Erstellt eine Kopie der Beispiel-Umgebungsdatei
 ```
 
 Öffne die neue `.env`-Datei in einem Texteditor (z.B. Notepad, VS Code). Die Standardwerte sind für die lokale Entwicklung in der Regel in Ordnung, du musst sie also nicht unbedingt ändern. Sie sehen ungefähr so aus:  
@@ -102,6 +102,11 @@ docker compose up --build -d  # Startet Container im Hintergrund (detached mode)
 ```
 
 Nach ein paar Minuten ist die Anwendung unter [http://localhost:8000](http://localhost:8000) erreichbar. 🎉
+
+> **Hinweis:** Auf macOS muss die Datei `entrypoint.sh` (oder das entsprechende Startskript) ausführbar gemacht werden, damit das Skript ausgeführt werden kann. Dies kannst du mit folgendem Befehl tun:  
+> ```bash
+> chmod +x entrypoint.sh
+> ```
 
 ---
 
