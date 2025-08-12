@@ -42,7 +42,7 @@ class RegistrationView(APIView):
             saved_account = serializer.save()
             uid = urlsafe_base64_encode(force_bytes(saved_account.pk))
             token = default_token_generator.make_token(saved_account)
-            activation_link = f"http://localhost:8000/api/activate/{uid}/{token}/"
+            activation_link = f"http://127.0.0.1:5500/pages/auth/activate.html?uid={uid}&token={token}"
 
             subject = 'Welcome to Videoflix 🎬 – Activate Your Account'
             text_content = (f'Thanks for registering, {saved_account.username}!\n\n'
@@ -283,7 +283,7 @@ class PasswordResetView(APIView):
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
-        reset_link = f"http://localhost:8000/api/password_reset_confirm/{uid}/{token}/"
+        reset_link = f"http://127.0.0.1:5500/pages/auth/confirm_password.html?uid={uid}&token={token}"
 
         subject = 'Password Reset – Videoflix'
         text_content = (f'Hello {user.username},\n\n'
