@@ -60,12 +60,13 @@ cd <Projektordner>    # Wechselt in den Projektordner
 
 Öffne das Projekt in deinem Code Editing Programm (zum Beispiel [Visual Studio Code](https://code.visualstudio.com/download)) und öffne ein neues Terminal. Erstelle eine virtuelle Umgebung (empfohlen, um Projekt-Abhängigkeiten sauber zu halten) und aktiviere sie:  
 ```bash
-python -m venv venv  # Erstellt eine virtuelle Umgebung
 
 # Für Windows:
+python -m venv venv  # Erstellt eine virtuelle Umgebung
 .\venv\Scripts\activate  # Aktiviert die virtuelle Umgebung
 
 # Für macOS/Linux:
+python3 -m venv venv  # Erstellt eine virtuelle Umgebung
 source venv/bin/activate  # Aktiviert die virtuelle Umgebung
 ```
 
@@ -118,7 +119,7 @@ Nach ein paar Minuten ist die Anwendung unter [http://localhost:8000](http://loc
 
 > **Hinweis:** Auf macOS muss die Datei `entrypoint.sh` (oder das entsprechende Startskript) ausführbar gemacht werden, damit das Skript ausgeführt werden kann. Dies kannst du mit folgendem Befehl tun:  
 > ```bash
-> chmod +x entrypoint.sh
+> chmod +x backend.entrypoint.sh
 > ```
 
 ---
