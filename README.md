@@ -233,11 +233,15 @@ Die gesamte Testsuite kann mit einem einzigen Befehl ausgeführt werden:
 - **Mit Docker:**  
   ```bash
   docker compose exec web python manage.py test  # Führt alle Tests im Docker-Container aus
+
+  docker compose exec web pytest --cov=. # Führt alle Tests mit pytest coverage aus.
   ```
 
 - **Manuell (ohne Docker):**  
   ```bash
   python manage.py test  # Führt alle Tests in der aktiven virtuellen Umgebung aus
+
+  pytest --cov=. # Führt alle Tests mit pytest coverage aus.
   ```
 
 ---
