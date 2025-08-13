@@ -62,11 +62,11 @@ cd <Projektordner>    # Wechselt in den Projektordner
 ```bash
 
 # Für Windows:
-python -m venv venv  # Erstellt eine virtuelle Umgebung
+python -m venv env  # Erstellt eine virtuelle Umgebung
 .\venv\Scripts\activate  # Aktiviert die virtuelle Umgebung
 
 # Für macOS/Linux:
-python3 -m venv venv  # Erstellt eine virtuelle Umgebung
+python3 -m venv env  # Erstellt eine virtuelle Umgebung
 source venv/bin/activate  # Aktiviert die virtuelle Umgebung
 ```
 
@@ -107,12 +107,12 @@ DJANGO_SUPERUSER_PASSWORD=adminpassword
 
 Jetzt starten wir alle Teile des Projekts auf einmal. Dieser Befehl baut die Images (so etwas wie Vorlagen für die Programme), startet die Services (Web-API, Datenbank, Redis) und führt alle notwendigen Einrichtungsschritte aus (z. B. Datenbankmigrationen).  
 ```bash
-docker compose up --build  # Baut und startet alle Container
+docker-compose up --build  # Baut und startet alle Container
 ```
 
 Tipp: Wenn du die Container im Hintergrund laufen lassen möchtest, damit dein Terminal frei bleibt, verwende:  
 ```bash
-docker compose up --build -d  # Startet Container im Hintergrund (detached mode)
+docker-compose up --build -d  # Startet Container im Hintergrund (detached mode)
 ```
 
 Nach ein paar Minuten ist die Anwendung unter [http://localhost:8000](http://localhost:8000) erreichbar. 🎉
@@ -145,13 +145,13 @@ cd <Projektordner>    # Wechselt in den Projektordner
 
 Erstelle eine virtuelle Umgebung (empfohlen, um Projekt-Abhängigkeiten sauber zu halten) und aktiviere sie:  
 ```bash
-python -m venv venv  # Erstellt eine virtuelle Umgebung
+python -m venv env  # Erstellt eine virtuelle Umgebung
 
 # Für Windows:
-.\venv\Scripts\activate  # Aktiviert die virtuelle Umgebung
+.\env\Scripts\activate  # Aktiviert die virtuelle Umgebung
 
 # Für macOS/Linux:
-source venv/bin/activate  # Aktiviert die virtuelle Umgebung
+source env/bin/activate  # Aktiviert die virtuelle Umgebung
 ```
 
 #### 3. Abhängigkeiten installieren

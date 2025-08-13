@@ -14,7 +14,7 @@ class Video(models.Model):
     description = models.CharField("Description", max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
     category = models.CharField(max_length=50)
-    video_file = models.FileField(upload_to='videos', blank=False, null=False)
+    video_file = models.FileField(upload_to='videos')
     video_480p = models.FileField(upload_to='videos/480p/', null=True, blank=True)
     video_720p = models.FileField(upload_to='videos/720p/', null=True, blank=True)
     video_1080p = models.FileField(upload_to='videos/1080p/', null=True, blank=True)
