@@ -58,3 +58,4 @@ class VideoSerializer(serializers.ModelSerializer):
             return full_url
 
         return None
+    

@@ -38,9 +38,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         """
         email = validated_data['email']
         password = validated_data['password']
-        
-        # Der Username wird hier aus der E-Mail generiert, aber die Validierung
-        # findet in der `validate`-Methode statt.
         username = email.split('@')[0]
 
         user = User.objects.create_user(
@@ -154,5 +151,4 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate({"username": user.username, "password": password})
         data['user'] = user
         return data
-    
     

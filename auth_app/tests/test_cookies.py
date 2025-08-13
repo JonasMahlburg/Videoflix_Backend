@@ -1,5 +1,4 @@
 import datetime
-from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
@@ -9,9 +8,17 @@ User = get_user_model()
 
 
 class CookieAuthenticationAPITest(APITestCase):
+    """
+    Test suite for JWT authentication using HTTP-only cookies.
+
+    This class tests the functionality of logging in, refreshing tokens,
+    and the security attributes of the cookies.
+    """
 
     def setUp(self):
-        # Feste URLs anstelle von reverse()
+        """
+        Set up a user and URLs for testing.
+        """
         self.login_url = "/api/login/"
         self.refresh_url = "/api/token/refresh/"
         self.user = User.objects.create_user(
@@ -22,6 +29,10 @@ class CookieAuthenticationAPITest(APITestCase):
         )
 
     def test_login_sets_cookies(self):
+        """
+        Test that a successful login request sets the access and refresh tokens
+        as cookies in the response.
+        """
         data = {
             "email": self.user.email,
             "password": "testpassword123"
@@ -35,6 +46,10 @@ class CookieAuthenticationAPITest(APITestCase):
         self.assertNotEqual(response.cookies["refresh_token"].value, "")
 
     def test_refresh_with_valid_cookie(self):
+        """
+        Test that a valid refresh token cookie can successfully generate a new
+        access token.
+        """
         login_data = {
             "email": self.user.email,
             "password": "testpassword123"
@@ -54,12 +69,18 @@ class CookieAuthenticationAPITest(APITestCase):
         self.assertNotEqual(response.cookies["access_token"].value, "")
 
     def test_refresh_without_cookie(self):
+        """
+        Test that a token refresh request fails when no refresh token cookie is provided.
+        """
         response = self.client.post(self.refresh_url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "Refresh token not found!")
 
     def test_refresh_with_invalid_cookie(self):
+        """
+        Test that a token refresh request fails with an invalid refresh token.
+        """
         self.client.cookies["refresh_token"] = "invalid.token.value"
         response = self.client.post(self.refresh_url)
 
@@ -67,6 +88,9 @@ class CookieAuthenticationAPITest(APITestCase):
         self.assertEqual(response.data["detail"], "Refresh token invalid!")
     
     def test_refresh_with_expired_token(self):
+        """
+        Test that a token refresh request fails with an expired refresh token.
+        """
         refresh = RefreshToken.for_user(self.user)
         refresh.set_exp(lifetime=datetime.timedelta(seconds=-1))
 
@@ -77,6 +101,10 @@ class CookieAuthenticationAPITest(APITestCase):
         self.assertEqual(response.data["detail"], "Refresh token invalid!")
 
     def test_login_cookie_attributes(self):
+        """
+        Test that the cookies set upon login have the correct security attributes
+        (httponly, secure, samesite).
+        """
         data = {
             "email": self.user.email,
             "password": "testpassword123"

@@ -1,11 +1,14 @@
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from django.urls import path, include
-from .views import RegistrationView, CookieTokenObtainPairView, CookieTokenRefreshView, ActivateUserView, HelloWorldView, LogoutView, PasswordResetView, PasswordResetConfirmView
- 
 
+from django.urls import path
+from .views import(RegistrationView,
+                    CookieTokenObtainPairView, 
+                    CookieTokenRefreshView,
+                    HelloWorldView, 
+                    LogoutView,
+                    PasswordResetView,
+                    PasswordResetConfirmView,
+                    ) 
+ 
 
 urlpatterns = [
     path('register/', RegistrationView.as_view(), name='register'),

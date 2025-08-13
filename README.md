@@ -63,11 +63,15 @@ cd <Projektordner>    # Wechselt in den Projektordner
 
 # Für Windows:
 python -m venv env  # Erstellt eine virtuelle Umgebung
-.\venv\Scripts\activate  # Aktiviert die virtuelle Umgebung
+.\env\Scripts\activate  # Aktiviert die virtuelle Umgebung
 
 # Für macOS/Linux:
 python3 -m venv env  # Erstellt eine virtuelle Umgebung
-source venv/bin/activate  # Aktiviert die virtuelle Umgebung
+source env/bin/activate  # Aktiviert die virtuelle Umgebung
+```
+danach alle nötigen Installationen durchfürhen:
+```bash
+pip install requirements.txt
 ```
 
 #### 4. Die .env-Datei vorbereiten

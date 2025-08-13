@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from content_app.models import Video
 from content_app.api.serializers import VideoSerializer
-from content_app.models import FileUpload
 from .serializers import FileUploadSerializer
 from django.conf import settings
 import os

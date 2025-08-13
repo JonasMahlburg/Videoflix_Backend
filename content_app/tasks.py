@@ -7,7 +7,6 @@ from .models import Video
 
 logger = logging.getLogger(__name__)
 
-
 def get_filename_without_extension(file_path):
     """
     Extracts the filename from a path and removes its extension(s).
@@ -79,7 +78,6 @@ def convert_video_and_update_model(video_pk, target_resolution):
     except Exception as e:
         logger.error(f"An unexpected error occurred during conversion for video {video_pk}: {e}")
 
-
 def convert_480p(video_pk):
     """
     Enqueues the conversion task for 480p resolution.
@@ -88,7 +86,6 @@ def convert_480p(video_pk):
         video_pk (int): The primary key of the Video instance.
     """
     return convert_video_and_update_model.delay(video_pk, 480)
-
 
 def convert_720p(video_pk):
     """
@@ -99,7 +96,6 @@ def convert_720p(video_pk):
     """
     return convert_video_and_update_model.delay(video_pk, 720)
 
-
 def convert_1080p(video_pk):
     """
     Enqueues the conversion task for 1080p resolution.
@@ -108,7 +104,6 @@ def convert_1080p(video_pk):
         video_pk (int): The primary key of the Video instance.
     """
     return convert_video_and_update_model.delay(video_pk, 1080)
-
 
 def delete_file(path):
     """
@@ -122,7 +117,6 @@ def delete_file(path):
         logger.info(f"Deleted file: {path}")
     else:
         logger.warning(f"File not found for deletion: {path}")
-
 
 def generate_thumbnail(video_pk):
     """

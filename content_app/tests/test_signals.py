@@ -7,15 +7,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from content_app.models import Video
 from content_app.tasks import (
     generate_thumbnail,
-    convert_480p,
-    convert_720p,
-    convert_1080p,
     generate_hls_playlist,
-    delete_file,
     convert_video_and_update_model
 )
 
-# This test class checks the post_delete signal that deletes the video file.
+
 @patch('content_app.signals.delete_file')
 @patch('content_app.signals.shutil.rmtree')
 class TestFileDeletionSignals(TestCase):
@@ -26,16 +22,13 @@ class TestFileDeletionSignals(TestCase):
         """
         Set up a temporary media root and a Video object for each test.
         """
-        # Create a temporary directory for tests
         self.temp_media_root = os.path.join(settings.BASE_DIR, 'test_media')
         settings.MEDIA_ROOT = self.temp_media_root
-        
-        # Create necessary subdirectories
+
         os.makedirs(os.path.join(self.temp_media_root, 'videos', '480p'), exist_ok=True)
         os.makedirs(os.path.join(self.temp_media_root, 'videos', '720p'), exist_ok=True)
         os.makedirs(os.path.join(self.temp_media_root, 'thumbnails'), exist_ok=True)
 
-        # Create a Video object
         self.video = Video.objects.create(
             title="Video to Delete",
             video_file=os.path.join('videos', 'original.mp4'),
@@ -43,8 +36,7 @@ class TestFileDeletionSignals(TestCase):
             video_720p=os.path.join('videos', '720p', 'original_720p.mp4'),
             thumbnail_url=os.path.join('thumbnails', 'original_thumbnail.jpg')
         )
-        
-        # Create actual dummy files for the test to pass
+
         with open(os.path.join(settings.MEDIA_ROOT, self.video.video_file.name), 'w') as f: f.write('original')
         with open(os.path.join(settings.MEDIA_ROOT, self.video.video_480p.name), 'w') as f: f.write('480p')
         with open(os.path.join(settings.MEDIA_ROOT, self.video.video_720p.name), 'w') as f: f.write('720p')
@@ -61,27 +53,23 @@ class TestFileDeletionSignals(TestCase):
         """
         Tests that delete_file is called for all associated files when a Video is deleted.
         """
-        # Get absolute paths for the expected calls
         expected_calls = [
             call(self.video.video_file.path),
             call(self.video.video_480p.path),
             call(self.video.video_720p.path),
             call(os.path.join(settings.MEDIA_ROOT, self.video.thumbnail_url))
         ]
-        
-        # Manually create the HLS directory to simulate an existing one
+
         hls_dir = os.path.join(settings.MEDIA_ROOT, 'hls', str(self.video.pk))
         os.makedirs(hls_dir, exist_ok=True)
         
         self.video.delete()
         
         self.assertCountEqual(mock_delete_file.call_args_list, expected_calls)
-        
-        # Verify that rmtree was called with the correct path
+
         mock_rmtree.assert_called_once_with(hls_dir)
 
 
-# This test class checks the post_save signal that enqueues an RQ job.
 @patch('content_app.signals.django_rq.get_queue')
 class TestVideoPostSaveSignal(TestCase):
     """

@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 from content_app.api.views import VideoViewSet, HLSPlaylistView, HLSSegmentView
 
